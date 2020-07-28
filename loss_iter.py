@@ -70,7 +70,7 @@ class CondLoss(nn.Module):
             loss = loss.sum(dim=1)
         
         loss = loss.reshape(loss.shape[0], -1)
-        return torch.sum((1 - noise_vertices) * q * loss, dim=1) / torch.sum((1 - noise_vertices) * q, dim=1)
+        return torch.sum((1 - noise_vertices) * (q - self.q_min) * loss, dim=1) / torch.sum((1 - noise_vertices) * (q - self.q_min), dim=1)
 
     def potential_loss(self, q: torch.Tensor, matrix: torch.Tensor, height: int, width: int, n_objects: int) -> torch.Tensor:
         """Calculate loss from the condesation potential
@@ -176,7 +176,6 @@ class CondLoss(nn.Module):
         beta -- tensor with shape (n_batch, height * width), beta_i -- probability of vertex i being a condenstaion point
 
         matrix -- tensor wit shape (batch_size, n_objects, h * w), element [.., i, j] equal to 1 if vertex j belongs to the class i
-
         input -- tensor with shape (batch_size, n_class, h, w), output from segmentation network
 
         target -- tensor with shape (batch_size, n_class, h, w), true class labeling
