@@ -116,7 +116,7 @@ class CondLoss(nn.Module):
             x_norm = torch.norm(x - tmp_idx, dim=2)
 
             # Calculate attractive potential
-            attractive_potential = x_norm * q_alpha
+            attractive_potential = q_alpha * (x_norm ** 2)
 
             zeros = torch.zeros(1)
             if torch.cuda.is_available() and self.cuda:
