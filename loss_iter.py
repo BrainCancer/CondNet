@@ -116,7 +116,7 @@ class CondLoss(nn.Module):
             x_norm = torch.norm(x - tmp_idx, dim=2)
 
             # Calculate attractive potential
-            attractive_potential = q_alpha * (x_norm ** 2)
+            attractive_potential = (x_norm ** 2) * q_alpha
 
             zeros = torch.zeros(1)
             if torch.cuda.is_available() and self.cuda:
@@ -176,6 +176,7 @@ class CondLoss(nn.Module):
         beta -- tensor with shape (n_batch, height * width), beta_i -- probability of vertex i being a condenstaion point
 
         matrix -- tensor wit shape (batch_size, n_objects, h * w), element [.., i, j] equal to 1 if vertex j belongs to the class i
+
         input -- tensor with shape (batch_size, n_class, h, w), output from segmentation network
 
         target -- tensor with shape (batch_size, n_class, h, w), true class labeling
@@ -188,8 +189,6 @@ class CondLoss(nn.Module):
 
         beta = beta.reshape(beta.shape[0], -1)
         matrix = matrix.reshape(matrix.shape[0], matrix.shape[1], -1)
-
-        n_objects = matrix.shape[1]
 
         noise_vertices = (torch.sum(matrix, dim=1) < 1).float()
 

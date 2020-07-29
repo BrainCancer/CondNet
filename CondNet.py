@@ -70,24 +70,12 @@ class CondNet(nn.Module):
             nn.ELU(),
             nn.Linear(64, 64),
             nn.ELU(),
-            nn.Linear(64, 1)
+            nn.Linear(64, 4)
         )
 
     def forward(self, x):
         x = self.net(x)
         x = x.permute(0, 2, 3, 1)
         x = self.linear(x)
-        x = x.squeeze(3)
+        x = x.permute(0, 3, 1, 2)
         return x
-
-class SegNet(nn.Module):
-
-    def __init__(self, n_class=3):
-        super(SegNet, self).__init__()
-        self.n_class = n_class
-        self.cond_net = CondNet(self.n_class)
-        self.vgg_model = fcn.VGGNet(requires_grad=True)
-        self.fcn_model = fcn.FCN32s(pretrained_net=self.vgg_model, n_class=self.n_class)
-
-    def forward(self, x):
-        return self.cond_net(x), self.fcn_model(x)
