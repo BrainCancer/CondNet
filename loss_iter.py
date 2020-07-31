@@ -72,14 +72,16 @@ class CondLoss(nn.Module):
         loss = loss.reshape(loss.shape[0], -1)
         return torch.sum((1 - noise_vertices) * (q - self.q_min) * loss, dim=1) / torch.sum((1 - noise_vertices) * (q - self.q_min), dim=1)
 
-    def potential_loss(self, q: torch.Tensor, matrix: torch.Tensor, height: int, width: int, n_objects: int) -> torch.Tensor:
+    def potential_loss(self, x: torch.Tensor, q: torch.Tensor, matrix: torch.Tensor, height: int, width: int, n_objects: int) -> torch.Tensor:
         """Calculate loss from the condesation potential
 
         Positional arguments:
 
-        q -- tensor with shape (batch_size, h * w), equal to arctanh^2(\\beta)
+        x -- tensor with shape (n_batch, height * width, 2), coordinates of points in the clustering space
 
-        matrix -- tensor wit shape (batch_size, n_objects, h * w), element [.., i, j] equal to 1 if vertex j belongs to the object i
+        q -- tensor with shape (batch_size, height * width), equal to arctanh^2(\\beta)
+
+        matrix -- tensor wit shape (batch_size, n_objects, height * width), element [.., i, j] equal to 1 if vertex j belongs to the object i
 
         n_objects -- number of objects in the given data
 
@@ -94,10 +96,6 @@ class CondLoss(nn.Module):
         
         if torch.cuda.is_available() and self.cuda:
             temp_loss = temp_loss.cuda()
-
-        # Create tensor of coordinates of each vertex
-        x = torch.stack(torch.meshgrid(torch.arange(0, height), torch.arange(0, width)), dim=2).reshape(-1, 2).float()
-        x = x.expand(1, -1, -1).repeat(q.shape[0], 1, 1)
 
         if torch.cuda.is_available() and self.cuda:
             x = x.cuda()
@@ -168,14 +166,16 @@ class CondLoss(nn.Module):
         return loss
 
 
-    def forward(self, beta: torch.Tensor, matrix: torch.Tensor, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, beta: torch.Tensor, matrix: torch.Tensor, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         r"""Calculate the overall loss
 
         Positional arguments:
 
-        beta -- tensor with shape (n_batch, height * width), beta_i -- probability of vertex i being a condenstaion point
+        x -- tensor with shape (n_batch, height, width, 2), coordinates of points in the clustering space
 
-        matrix -- tensor wit shape (batch_size, n_objects, h * w), element [.., i, j] equal to 1 if vertex j belongs to the class i
+        beta -- tensor with shape (n_batch, height, width), beta_i -- probability of vertex i being a condenstaion point
+
+        matrix -- tensor wit shape (batch_size, n_objects, height, width), element [.., i, j] equal to 1 if vertex j belongs to the class i
 
         input -- tensor with shape (batch_size, n_class, h, w), output from segmentation network
 
@@ -185,16 +185,18 @@ class CondLoss(nn.Module):
         Return:
         Value of loss reduced with 'mean' or 'sum', depending on the settings.
         """
-        c, n_objects, height, width = matrix.shape
+        batch_size, n_objects, height, width = matrix.shape
 
-        beta = beta.reshape(beta.shape[0], -1)
-        matrix = matrix.reshape(matrix.shape[0], matrix.shape[1], -1)
+        beta = beta.reshape(batch_size, -1)
+        x = x.reshape(batch_size, -1, 2)
+
+        matrix = matrix.reshape(batch_size, n_objects, -1)
 
         noise_vertices = (torch.sum(matrix, dim=1) < 1).float()
 
         q = self.atanh(beta) ** 2 + self.q_min
 
-        loss = self.general_loss(noise_vertices, q, input, target) + self.cond_weight * (self.background_loss(beta, matrix, noise_vertices, n_objects) + self.potential_loss(q, matrix, height, width, n_objects))
+        loss = self.general_loss(noise_vertices, q, input, target) + self.cond_weight * (self.background_loss(beta, matrix, noise_vertices, n_objects) + self.potential_loss(x, q, matrix, height, width, n_objects))
         
         if self.reduction == 'mean':
             return loss.mean()

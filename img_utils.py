@@ -15,43 +15,41 @@ from skimage.draw import random_shapes
 def gen_one_image(h=64, w=64):
 
     shapes = ('rectangle', 'triangle', 'circle')
-    n_objects = np.random.randint(1, 5)
-    matrix = np.zeros((h, w, 5))
+    n_images = 3 #np.random.randint(1, 9)
+    matrix = np.zeros((h, w, n_images))
     image = np.zeros((h, w, 3))
-    mask = np.zeros((h, w, 3))
-    for i in range(n_objects):
+    mask = np.zeros((h, w))
+    for i in range(n_images):
       n_shape = np.random.randint(len(shapes))
       tmp_image, _ = random_shapes((h, w), max_shapes=1, min_shapes=1, shape=shapes[n_shape],
                                 #   multichannel=True, num_channels=3, 
                                   min_size=21, max_size=32, allow_overlap=True)
       matrix[tmp_image[:, :, 0] < 255, i] = 1
-      mask[tmp_image[:, :, 0] < 255, n_shape] = 1
+      mask[tmp_image[:, :, 0] < 255] = n_shape + 1
       tmp_image[tmp_image == 255] = 0
+      
+      image[tmp_image[:, :, 0] > 0] = tmp_image[tmp_image[:, :, 0] > 0]
+    image /= 255
+    image[image == 0] = 1
 
-      image += tmp_image
-    image /= np.sqrt(np.sum(image))
-
-    return image, mask, matrix, n_objects
+    return image, mask, matrix
 
 
 def gen_images(num_images: int):
     n_batches = int(np.ceil(num_images / 10**4))
     for i in range(n_batches):
-        images, masks, matrices, objects = [], [], [], []
+        images, masks, matrices= [], [], []
         for j in tqdm.tqdm_notebook(range(10**4)):
-            tmp_image, tmp_mask, tmp_matrix, tmp_objects = gen_one_image()
+            tmp_image, tmp_mask, tmp_matrix= gen_one_image()
             images.append(tmp_image)
             masks.append(tmp_mask)
             matrices.append(tmp_matrix)
-            objects.append(tmp_objects)
         with open(f'image_batch_{i}.npy', 'wb') as f:
           np.save(f, images)
         with open(f'mask_batch_{i}.npy', 'wb') as f:
           np.save(f, masks)
         with open(f'matrix_batch_{i}.npy', 'wb') as f:
           np.save(f, matrices)
-        with open(f'objects_batch_{i}.npy', 'wb') as f:
-          np.save(f, objects)
 
 
 class ImageDataset(Dataset):
@@ -85,8 +83,8 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, idx):
         
-        x = self.transform(self.images[idx]).double()
-        y = self.transform(self.masks[idx]).double()
-        z = self.transform(self.matrices[idx]).double()
+        x = self.transform(self.images[idx]).float()
+        y = self.transform(self.masks[idx]).long()
+        z = self.transform(self.matrices[idx]).float()
         # obj = torch.Tensor(self.objects[idx]).double()
         return x, y, z

@@ -55,27 +55,44 @@ class MainBlock(nn.Module):
 
 class CondNet(nn.Module):
 
-    def __init__(self, in_channels):
+    def __init__(self, in_channels, n_class=3):
         super(CondNet, self).__init__()
         self.in_channels = in_channels
-
+        self.n_class = n_class
         self.net = nn.Sequential(
             MainBlock(self.in_channels, 3),
             MainBlock(128, 4),
             MainBlock(128, 5)
         )
 
-        self.linear = nn.Sequential(
+        self.cond_linear = nn.Sequential(
             nn.Linear(128, 64),
             nn.ELU(),
             nn.Linear(64, 64),
             nn.ELU(),
-            nn.Linear(64, 4)
+            nn.Linear(64, 1)
+        )
+
+        self.cluster_linear = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.ELU(),
+            nn.Linear(64, 64),
+            nn.ELU(),
+            nn.Linear(64, 2)
+        )
+
+        self.seg_linear = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.ELU(),
+            nn.Linear(64, 64),
+            nn.ELU(),
+            nn.Linear(64, 3)
         )
 
     def forward(self, x):
         x = self.net(x)
         x = x.permute(0, 2, 3, 1)
-        x = self.linear(x)
-        x = x.permute(0, 3, 1, 2)
-        return x
+        beta = self.cond_linear(x).squeeze(3)
+        clust = self.cluster_linear(x)
+        seg = self.seg_linear(x).permute(0, 3, 1, 2)
+        return beta, clust, seg
