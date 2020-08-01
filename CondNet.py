@@ -86,7 +86,7 @@ class CondNet(nn.Module):
             nn.ELU(),
             nn.Linear(64, 64),
             nn.ELU(),
-            nn.Linear(64, 3)
+            nn.Linear(64, 4)
         )
 
     def forward(self, x):
