@@ -2,9 +2,6 @@ import numpy as np
 import tqdm
 import glob
 
-import pickle
-
-import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
@@ -18,14 +15,14 @@ def gen_one_image(h=64, w=64):
     n_images = 3 #np.random.randint(1, 9)
     matrix = np.zeros((h, w, n_images))
     image = np.zeros((h, w, 3))
-    mask = np.zeros((h, w))
+    mask = np.full((h, w), -1)
     for i in range(n_images):
       n_shape = np.random.randint(len(shapes))
       tmp_image, _ = random_shapes((h, w), max_shapes=1, min_shapes=1, shape=shapes[n_shape],
                                 #   multichannel=True, num_channels=3, 
                                   min_size=21, max_size=32, allow_overlap=True)
       matrix[tmp_image[:, :, 0] < 255, i] = 1
-      mask[tmp_image[:, :, 0] < 255] = n_shape + 1
+      mask[tmp_image[:, :, 0] < 255] = n_shape
       tmp_image[tmp_image == 255] = 0
       
       image[tmp_image[:, :, 0] > 0] = tmp_image[tmp_image[:, :, 0] > 0]
