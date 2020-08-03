@@ -63,14 +63,14 @@ class CondLoss(nn.Module):
         Value of loss for each element in batch with shape (batch_size)
         """
         loss = self.loss_function(input, target)
-
-        if self.reduction == 'mean':
-            loss = loss.mean(dim=1)
-        elif self.reduction == 'sum':
-            loss = loss.sum(dim=1)
         
         loss = loss.reshape(loss.shape[0], -1)
-        return torch.sum((1 - noise_vertices) * (q - self.q_min) * loss, dim=1) / torch.sum((1 - noise_vertices) * (q - self.q_min), dim=1)
+        # Just a way to eleminate 0 / 0 division
+        temp_div = torch.sum((1 - noise_vertices) * (q - self.q_min), dim=1)
+        temp_loss = torch.sum((1 - noise_vertices) * (q - self.q_min) * loss, dim=1) / torch.where(temp_div == 0, torch.ones_like(temp_div), temp_div)
+        temp_loss = torch.where(temp_div == 0, torch.zeros_like(temp_loss), temp_loss)
+
+        return temp_loss
 
     def potential_loss(self, x: torch.Tensor, q: torch.Tensor, matrix: torch.Tensor, height: int, width: int, n_objects: int) -> torch.Tensor:
         """Calculate loss from the condesation potential
@@ -131,7 +131,7 @@ class CondLoss(nn.Module):
         # Return mean between all objects
         return loss
     
-    def background_loss(self, beta: torch.Tensor, matrix: torch.Tensor, noise_vertices: torch.Tensor, n_objects: int) -> torch.Tensor:
+    def background_loss(self,beta: torch.Tensor, matrix: torch.Tensor, noise_vertices: torch.Tensor, n_objects: int) -> torch.Tensor:
         r"""Calculate loss from the backgound vertices
 
         Positional arguments:
@@ -181,13 +181,13 @@ class CondLoss(nn.Module):
 
         target -- tensor with shape (batch_size, n_class, h, w), true class labeling
 
-
         Return:
         Value of loss reduced with 'mean' or 'sum', depending on the settings.
         """
         batch_size, n_objects, height, width = matrix.shape
 
         beta = beta.reshape(batch_size, -1)
+        # x = x.permute(0, 2, 3, 1)
         x = x.reshape(batch_size, -1, 2)
 
         matrix = matrix.reshape(batch_size, n_objects, -1)
