@@ -2,6 +2,9 @@ import numpy as np
 import tqdm
 import glob
 
+import pickle
+
+import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
@@ -20,7 +23,7 @@ def gen_one_image(h=64, w=64):
       n_shape = np.random.randint(len(shapes))
       tmp_image, _ = random_shapes((h, w), max_shapes=1, min_shapes=1, shape=shapes[n_shape],
                                 #   multichannel=True, num_channels=3, 
-                                  min_size=21, max_size=32, allow_overlap=True)
+                                  min_size=11, max_size=22, allow_overlap=True)
       matrix[tmp_image[:, :, 0] < 255, i] = 1
       mask[tmp_image[:, :, 0] < 255] = n_shape
       tmp_image[tmp_image == 255] = 0
@@ -32,12 +35,12 @@ def gen_one_image(h=64, w=64):
     return image, mask, matrix
 
 
-def gen_images(num_images: int):
+def gen_images(num_images: int, h=64, w=64):
     n_batches = int(np.ceil(num_images / 10**4))
     for i in range(n_batches):
         images, masks, matrices= [], [], []
         for j in tqdm.tqdm_notebook(range(10**4)):
-            tmp_image, tmp_mask, tmp_matrix= gen_one_image()
+            tmp_image, tmp_mask, tmp_matrix= gen_one_image(h, w)
             images.append(tmp_image)
             masks.append(tmp_mask)
             matrices.append(tmp_matrix)
