@@ -65,12 +65,10 @@ class CondLoss(nn.Module):
         loss = self.loss_function(input, target)
         
         loss = loss.reshape(loss.shape[0], -1)
-        # Just a way to eleminate 0 / 0 division
-        temp_div = torch.sum((1 - noise_vertices) * (q - self.q_min), dim=1)
-        temp_loss = torch.sum((1 - noise_vertices) * (q - self.q_min) * loss, dim=1) / torch.where(temp_div == 0, torch.ones_like(temp_div), temp_div)
-        temp_loss = torch.where(temp_div == 0, torch.zeros_like(temp_loss), temp_loss)
-
-        return temp_loss
+        # temp_div = torch.sum((1 - noise_vertices) * (q - self.q_min), dim=1)
+        # temp_loss = torch.sum((1 - noise_vertices) * (q - self.q_min) * loss, dim=1) / torch.where(temp_div == 0, torch.ones_like(temp_div), temp_div)
+        # temp_loss = torch.where(temp_div == 0, torch.zeros_like(temp_loss), temp_loss)
+        return torch.sum((1 - noise_vertices) * (q - self.q_min) * loss, dim=1) / torch.sum((1 - noise_vertices) * (q - self.q_min), dim=1)
 
     def potential_loss(self, x: torch.Tensor, q: torch.Tensor, matrix: torch.Tensor, height: int, width: int, n_objects: int) -> torch.Tensor:
         """Calculate loss from the condesation potential
@@ -196,8 +194,10 @@ class CondLoss(nn.Module):
 
         q = self.atanh(beta) ** 2 + self.q_min
 
-        loss = self.general_loss(noise_vertices, q, input, target) + self.cond_weight * (self.background_loss(beta, matrix, noise_vertices, n_objects) + self.potential_loss(x, q, matrix, height, width, n_objects))
-        
+        # loss = self.cond_weight * (self.background_loss(beta, matrix, noise_vertices, n_objects) \
+        # + self.potential_loss(x, q, matrix, height, width, n_objects)) + self.general_loss(noise_vertices, q, input, target)
+        loss = self.cond_weight * (self.background_loss(beta, matrix, noise_vertices, n_objects) \
+        + self.potential_loss(x, q, matrix, height, width, n_objects)) + self.general_loss(noise_vertices, q, input, target)
         if self.reduction == 'mean':
             return loss.mean()
         elif self.reduction == 'sum':
